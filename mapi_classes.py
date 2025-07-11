@@ -16,24 +16,48 @@ Este módulo forma parte de la biblioteca estándar de Python, y se usa principa
 
 pygame.init()
 
-ancho_de_pantalla = 800
-alto_de_pantalla = 800
+class Config:
+    # Atributos:
+    ancho_de_pantalla = 800
+    alto_de_pantalla = 800
 
-ancho_de_tablero = 640
-alto_de_tablero = 640
+    ancho_de_tablero = 640
+    alto_de_tablero = 640
 
 
-# Posición X donde empiezan los botones (justo a la derecha del tablero):
-botones_x = ancho_de_tablero + 20
+    # Posición X donde empiezan los botones (justo a la derecha del tablero):
+    botones_x = ancho_de_tablero + 20
+
+class Boton:
+    # Esto es innecesario en este caso, ya que son variables directas y no atributos fijos en sí.
+    '''
+    posicion_eje_x = botones_x
+    posicion_eje_y = 0
+    ancho = 120
+    alto = 40
+    '''
+    # Fuente para el texto de los botones (definida globalmente):
+    fuente = pygame.font.SysFont("Arial", 24)
+
+    def __init__(self, nombre_del_boton, posicion_eje_x, posicion_eje_y, ancho_del_boton, alto_del_boton):
+        # Atributos de instancia (Todo lo que estás asignando con self. dentro del método __init__ son atributos de instancia.):
+        self.nombre_del_boton = nombre_del_boton
+        self.posicion_eje_x = posicion_eje_x
+        self.posicion_eje_y = posicion_eje_y
+        self.ancho_del_boton = ancho_del_boton
+        self.alto_del_boton = alto_del_boton
+
+        self.rect = pygame.Rect(posicion_eje_x, posicion_eje_y, ancho_del_boton, alto_del_boton)
+
 
 # Diccionario que guarda cada botón con su posición y tamaño:
 botones = {
-    "obstaculo": pygame.Rect(botones_x, 50, 120, 40),
-    "entrada": pygame.Rect(botones_x, 110, 120, 40),
-    "salida": pygame.Rect(botones_x, 170, 120, 40),
-    "algoritmo": pygame.Rect(botones_x, 230, 120, 40),
-    "manual":pygame.Rect(botones_x, 290, 120, 40),
-    "reset":pygame.Rect(botones_x, 350, 120, 40)
+    "obstaculo": Boton("obstaculo", Config.botones_x, 50, 120, 40),
+    "entrada": Boton("entrada", Config.botones_x, 110, 120, 40),
+    "salida": Boton("salida", Config.botones_x, 170, 120, 40),
+    "algoritmo": Boton("algoritmo", Config.botones_x, 230, 120, 40),
+    "manual": Boton("manual", Config.botones_x, 290, 120, 40),
+    "reset": Boton("reset", Config.botones_x, 350, 120, 40),
 
     # botones_x: posición horizontal (eje X) donde empieza el botón, en píxeles desde la izquierda de la ventana.
     # 230: posición vertical (eje Y) donde empieza el botón, en píxeles desde arriba.
@@ -42,104 +66,126 @@ botones = {
 }
 
 
+#Setup básico de pygame:
+class Setup:
+    def __init__(self):
+        self.ancho = Config.ancho_de_pantalla
+        self.alto = Config.alto_de_pantalla
+
+        self.screen = pygame.display.set_mode((self.ancho_setup, self.ancho_setup))
+        pygame.display.set_caption("Google Maps Veneco:")
+        self.clock = pygame.time.Clock() # Para definir los FPS de mi juego.
+        self.running = True
+
+setup = Setup()
+
+
 #Solicitud de ancho y alto al usuario:
 num_filas = int(input("Elija cuantas filas quiere en su laberinto: "))
 num_columnas = int(input("Elija cuantas columnas quiere de su laberinto: "))
 
 
-#Setup básico de pygame:
-screen = pygame.display.set_mode((ancho_de_pantalla, alto_de_pantalla))
-pygame.display.set_caption("Google Maps Veneco:")
-clock = pygame.time.Clock() # Para definir los fps de mi juego.
-running = True
-
-
 # Configuración de celdas:
-celda_libre = 0
-celda_obstaculo = 1
-celda_inicio = 2
-celda_fin = 3
-celda_ruta = 4
-celda_jugador = 5
-
-# Calculamos ambos posibles tamaños (ancho/columnas y alto/filas)
-tam_celda_x_posible = ancho_de_tablero//num_columnas
-tam_celda_y_posible = alto_de_tablero//num_filas
-
-# Elegimos el mínimo para que la celda sea cuadrada sin pasarse del tablero
-tam_celda = min(tam_celda_x_posible, tam_celda_y_posible)
-
-# Definimos el ancho y alto de la celda igual al tamaño cuadrado
-tam_celda_x = tam_celda
-tam_celda_y = tam_celda
+class Celda:
+    # Atributos:
+    # Configuración:
+    celda_libre = 0
+    celda_obstaculo = 1
+    celda_inicio = 2
+    celda_fin = 3
+    celda_ruta = 4
+    celda_jugador = 5
 
 
-# Crear tablero:
-mapa = [[celda_libre for columna in range(num_columnas)] for fila in range(num_filas)]
+    # Atributos de instancia: 
+    def __init__(self, num_filas, num_columnas):
+        # Calculamos ambos posibles tamaños (ancho/columnas y alto/filas)
+        self.tam_celda_x_posible = Config.ancho_de_tablero // num_columnas
+        self.tam_celda_y_posible = Config.alto_de_tablero // num_filas
 
-# Coordenadas de entrada y salida:
-entrada_fila = None
-entrada_columna = None
-salida_fila = None
-salida_columna = None
-# 'None' indica que no han sido definidas por el usuario (después las definirá, obviamente).
-# Tambien se le puede poner '-1' si solo influye en el pygame.
+        # Elegimos el mínimo para que la celda sea cuadrada quepa del tablero
+        self.tam_celda = min(self.tam_celda_x_posible, self.tam_celda_y_posible)
 
-# Configuración de colores:
-GRIS = (200, 200, 200) 
-NEGRO = (0, 0, 0)
-VERDE = (0, 255, 0)
-ROJO = (255, 0, 0)
-BLANCO = (255, 255, 255)
-AZUL = (30, 80, 160)
-COLOR_JUGADOR = (0, 200, 255)  # Un celeste fuerte
+        # Definimos el ancho y alto de la celda igual al tamaño cuadrado
+        self.tam_celda_x = self.tam_celda
+        self.tam_celda_y = self.tam_celda
 
-# Fuente para el texto de los botones (definida globalmente):
-fuente = pygame.font.SysFont("Arial", 24)
+celda_instancia = Celda(num_filas, num_columnas)
+tam_celda_x = celda_instancia.tam_celda_x
+tam_celda_y = celda_instancia.tam_celda_y
 
 
-# Función de Imprimir Tablero:
-def mostrar_tablero():
-    for fila_indice in range(num_filas):
-        for columna_indice in range(num_columnas):
-
-            # Crea un rectangulo y ponle sus medidas:
-            x = columna_indice * tam_celda_x
-            y = fila_indice * tam_celda_y
-            rectangulo = pygame.Rect(x, y, tam_celda_x, tam_celda_y)
-            relleno = pygame.Rect(x + 4, y + 4, tam_celda_x - 8, tam_celda_y - 8)
-
-
-            # Muestrame el rectangulo:
-            if mapa[fila_indice][columna_indice] == celda_libre:
-                pygame.draw.rect(screen, GRIS, rectangulo, 8) 
-            elif mapa[fila_indice][columna_indice] == celda_obstaculo:
-                pygame.draw.rect(screen, NEGRO, relleno)
-            elif mapa[fila_indice][columna_indice] == celda_inicio:
-                pygame.draw.rect(screen, VERDE, relleno)
-            elif mapa[fila_indice][columna_indice] == celda_fin:
-                pygame.draw.rect(screen, ROJO, relleno)
-            elif mapa[fila_indice][columna_indice] == celda_ruta:
-                pygame.draw.rect(screen, AZUL, relleno)
-            elif mapa[fila_indice][columna_indice] == celda_jugador:
-                pygame.draw.rect(screen, COLOR_JUGADOR, relleno)
+class Colores:
+    # Configuración de colores:
+    GRIS = (200, 200, 200) 
+    NEGRO = (0, 0, 0)
+    VERDE = (0, 255, 0)
+    ROJO = (255, 0, 0)
+    BLANCO = (255, 255, 255)
+    AZUL = (30, 80, 160)
+    COLOR_JUGADOR = (0, 200, 255)  # Un celeste fuerte
 
 
-    # Mostrar cuando el boton esta "clickeado" o "activo":
-    for nombre, rect in botones.items():
+modo_actual = 'obstaculo'
 
-        if nombre == modo_actual:
-            pygame.draw.rect(screen, NEGRO, rect)  # Fondo negro para activo
-            texto = fuente.render(nombre.capitalize(), True, BLANCO)  # Texto blanco
+class Tablero:
+    # Atributos de instancia:
+    def __init__(self, num_columnas, num_filas, entrada_fila = None, entrada_columna = None, salida_fila = None, salida_columna = None, ):
+        # Crear tablero:
+        self.mapa = [[Celda.celda_libre for columna in range(num_columnas)] for fila in range(num_filas)]
 
-        else:
-            pygame.draw.rect(screen, BLANCO, rect)  # Fondo blanco para inactivo
-            texto = fuente.render(nombre.capitalize(), True, NEGRO)  # Texto negro
+        # Coordenadas de entrada y salida:
+        self.entrada_fila = entrada_fila
+        self.entrada_columna = entrada_columna
+        self.salida_fila = salida_fila
+        self.salida_columna = salida_columna
+        # 'None' indica que no han sido definidas por el usuario (después las definirá, obviamente).
+        # Tambien se le puede poner '-1' si solo influye en el pygame.
 
-        pygame.draw.rect(screen, NEGRO, rect, 2)  # Borde negro siempre
-        texto_rect = texto.get_rect(center=rect.center)
-        screen.blit(texto, texto_rect)
-            
+
+    # Función de Imprimir Tablero:
+    def mostrar_tablero(self):
+        for fila_indice in range(num_filas):
+            for columna_indice in range(num_columnas):
+
+                # Crea un rectangulo y ponle sus medidas:
+                x = columna_indice * tam_celda_x
+                y = fila_indice * tam_celda_y
+                rectangulo = pygame.Rect(x, y, tam_celda_x, tam_celda_y)
+                relleno = pygame.Rect(x + 4, y + 4, tam_celda_x - 8, tam_celda_y - 8)
+
+
+                # Muestrame el rectangulo:
+                if self.mapa[fila_indice][columna_indice] == Celda.celda_libre:
+                    pygame.draw.rect(setup.screen, Colores.GRIS, rectangulo, 8) 
+                elif self.mapa[fila_indice][columna_indice] == Celda.celda_obstaculo:
+                    pygame.draw.rect(setup.screen, Colores.NEGRO, relleno)
+                elif self.mapa[fila_indice][columna_indice] == Celda.celda_inicio:
+                    pygame.draw.rect(setup.screen, Colores.VERDE, relleno)
+                elif self.mapa[fila_indice][columna_indice] == Celda.celda_fin:
+                    pygame.draw.rect(setup.screen, Colores.ROJO, relleno)
+                elif self.mapa[fila_indice][columna_indice] == Celda.celda_ruta:
+                    pygame.draw.rect(setup.screen, Colores.AZUL, relleno)
+                elif self.mapa[fila_indice][columna_indice] == Celda.celda_jugador:
+                    pygame.draw.rect(setup.screen, Colores.COLOR_JUGADOR, relleno)
+
+
+        # Mostrar cuando el boton esta "clickeado" o "activo":
+        for nombre, rect in botones.items():
+
+            if nombre == modo_actual:
+                pygame.draw.rect(setup.screen, Colores.NEGRO, rect)  # Fondo negro para activo
+                texto = Boton.fuente.render(nombre.capitalize(), True, Colores.BLANCO)  # Texto blanco
+
+            else:
+                pygame.draw.rect(setup.screen, Colores.BLANCO, rect)  # Fondo blanco para inactivo
+                texto = Boton.fuente.render(nombre.capitalize(), True, Colores.NEGRO)  # Texto negro
+
+            pygame.draw.rect(setup.screen, Colores.NEGRO, rect, 2)  # Borde negro siempre
+            texto_rect = texto.get_rect(center=rect.center)
+            setup.screen.blit(texto, texto_rect)
+
+
 
 def juego_manual(entrada_fila, entrada_columna, salida_fila, salida_columna):
     jugador_fila = entrada_fila
@@ -226,114 +272,121 @@ def juego_manual(entrada_fila, entrada_columna, salida_fila, salida_columna):
 def distancia_manhattan_heuristica(primera_x, segunda_x, primera_y, segunda_y):
     return abs(primera_x - segunda_x) + abs(primera_y - segunda_y)
 
-def algoritmo(entrada_fila, entrada_columna, salida_fila, salida_columna):
-    
-    # Le damos las coordenadas al algoritmo:
-    x1 = entrada_fila
-    y1 = entrada_columna
-    x2 = salida_fila
-    y2 = salida_columna
-
-    movimientos = [(-1, 0), (1, 0), (0, -1), (0, 1)]  # Arriba, abajo, izquierda, derecha
-
-    # Formula general de A*: f = g + h
-    # "g" es igual a el costo (en este caso, distancia) que nos llevó moverse desde el principio hasta ese punto.
-    # "h" (heuristica) es el costo de la casilla actual hasta la meta.
-    # "f" es la suma de 'g' y 'h'
-
-    # Creamos una lista vacía llamada cola, que será usada como heap/cola de prioridad.
-    cola = []
-
-    # Calculamos la heurística (h) desde la entrada hasta la salida.
-    heuristica = distancia_manhattan_heuristica(x1, x2, y1, y2)
-
-
-    heapq.heappush(cola, (heuristica, 0, (x1, y1), [(x1, y1)]))
-    # Hey, agrega esta celda inicial (x1, y1) a la cola de prioridad, con:
-    
-        # "f = heurística (porque g = 0 al principio),"
-
-        # "g = 0 (no he caminado nada aún),"
-
-        # "su posición actual (x1, y1),"
-
-        # "y su camino recorrido hasta ahora: solo ella misma [(x1, y1)]."
-
-    # Además, ordena automáticamente la cola de forma que la celda con menor f quede siempre al frente.”
-
-
-    visitados = set()
-    # set(): lista que no se puede repetir elementos.
-
-    while cola:
-        f, g, (x, y), camino = heapq.heappop(cola)
-        # Saca el nodo con menor 'f' (puntaje) de la cola
-
-        # Marcar la celda actual como visitada (para mostrar el progreso)
-        if mapa[x][y] == celda_libre:
-            mapa[x][y] = celda_ruta
-
-        # Pausa para mostrar el progreso paso a paso
-        pygame.time.wait(200)  # Pausa entre cada paso
-
-        # Permitir interacción durante el algoritmo
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-            
-            # Permitir modificar el mapa durante la ejecución
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                x_mouse, y_mouse = pygame.mouse.get_pos()
-                fila_click = y_mouse // tam_celda
-                columna_click = x_mouse // tam_celda
-                
-                # Solo permitir agregar/quitar obstáculos
-                if (0 <= fila_click < num_filas and 0 <= columna_click < num_columnas and
-                    mapa[fila_click][columna_click] != celda_inicio and mapa[fila_click][columna_click] != celda_fin):
-                    
-                    if mapa[fila_click][columna_click] == celda_libre:
-                        mapa[fila_click][columna_click] = celda_obstaculo
-                    elif mapa[fila_click][columna_click] == celda_obstaculo:
-                        mapa[fila_click][columna_click] = celda_libre
-
-        # Actualizar pantalla para mostrar el progreso
-        screen.fill("gray")
-        mostrar_tablero()
-        pygame.display.flip()
-        clock.tick(60)
-
-        # Si llegamos a la salida, terminamos
-        if (x, y) == (x2, y2):
-            for px, py in camino:
-                if mapa[px][py] == celda_ruta:
-                    mapa[px][py] = celda_jugador
-            print("")
-            print(f"🎯 Camino encontrado! Tiempo estimado: {len(camino)}0 min.")
-            return camino  # Camino encontrado
+class A_estrella:
+    def __init__(self, entrada_fila, entrada_columna, salida_fila, salida_columna, mapa, tam_celda):
         
+        # Le damos las coordenadas al algoritmo:
+        self.x1 = entrada_fila
+        self.y1 = entrada_columna
+        self.x2 = salida_fila
+        self.y2 = salida_columna
 
-        # Marcamos como visitado
-        visitados.add((x, y))
+        self.movimientos = [(-1, 0), (1, 0), (0, -1), (0, 1)]  # Arriba, abajo, izquierda, derecha
 
-        # Revisamos vecinos
-        for dx, dy in movimientos:
-            nueva_x, nueva_y = x + dx, y + dy
-            if (0 <= nueva_x < num_filas and 0 <= nueva_y < num_columnas and
-                    mapa[nueva_x][nueva_y] != celda_obstaculo) and (nueva_x, nueva_y) not in visitados:
-                    # Esta condición también evita que las coordenadas (x, y) no se repitan, porque sino volverian al punto de entrada siempre. 
+        # Formula general de A*: f = g + h
+        # "g" es igual a el costo (en este caso, distancia) que nos llevó moverse desde el principio hasta ese punto.
+        # "h" (heuristica) es el costo de la casilla actual hasta la meta.
+        # "f" es la suma de 'g' y 'h'
+
+        # Creamos una lista vacía llamada cola, que será usada como heap/cola de prioridad.
+        self.cola = []
+
+        # Calculamos la heurística (h) desde la entrada hasta la salida.
+        self.heuristica = distancia_manhattan_heuristica(self.x1, self.x2, self.y1, self.y2)
+
+
+        heapq.heappush(self.cola, (self.heuristica, 0, (self.x1, self.y1), [(self.x1, self.y1)]))
+        # Hey, agrega esta celda inicial (x1, y1) a la cola de prioridad, con:
+        
+            # "f = heurística (porque g = 0 al principio),"
+
+            # "g = 0 (no he caminado nada aún),"
+
+            # "su posición actual (x1, y1),"
+
+            # "y su camino recorrido hasta ahora: solo ella misma [(x1, y1)]."
+
+        # Además, ordena automáticamente la cola de forma que la celda con menor f quede siempre al frente.”
+
+
+        self.visitados = set()
+        # set(): lista que no se puede repetir elementos.
+
+        while self.cola:
+            f, g, (x, y), camino = heapq.heappop(self.cola)
+            # Saca el nodo con menor 'f' (puntaje) de la cola
+
+            # Marcar la celda actual como visitada (para mostrar el progreso)
+            if mapa[x][y] == Celda.celda_libre:
+                mapa[x][y] = Celda.celda_ruta
+
+            # Pausa para mostrar el progreso paso a paso
+            self.pausa = pygame.time.wait(200)  # Pausa entre cada paso
+
+            # Permitir interacción durante el algoritmo
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                
+                # Permitir modificar el mapa durante la ejecución
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    x_mouse, y_mouse = pygame.mouse.get_pos()
+                    fila_click = y_mouse // tam_celda
+                    columna_click = x_mouse // tam_celda
                     
-                    # Caminamos 1 paso más:
-                    nuevo_g = g + 1
+                    # Solo permitir agregar/quitar obstáculos
+                    if (0 <= fila_click < num_filas and 0 <= columna_click < num_columnas and
+                        mapa[fila_click][columna_click] != Celda.celda_inicio and mapa[fila_click][columna_click] != Celda.celda_fin):
+                        
+                        if mapa[fila_click][columna_click] == Celda.celda_libre:
+                            mapa[fila_click][columna_click] = Celda.celda_obstaculo
+                        elif mapa[fila_click][columna_click] == Celda.celda_obstaculo:
+                            mapa[fila_click][columna_click] = Celda.celda_libre
 
-                    # Calculamos la heuristica actual:
-                    h = distancia_manhattan_heuristica(nueva_x, x2, nueva_y, y2)
+            # Actualizar pantalla para mostrar el progreso
+            setup.screen.fill("gray")
+            mostrar_tablero()
+            pygame.display.flip()
+            setup.clock.tick(60)
 
-                    # Hacemos el calculo de f:
-                    nuevo_f = nuevo_g + h
+            # Si llegamos a la salida, terminamos
+            if (x, y) == (self.x2, self.y2):
+                for px, py in camino:
+                    if mapa[px][py] == Celda.celda_ruta:
+                        mapa[px][py] = Celda.celda_jugador
+                print("")
+                print(f"🎯 Camino encontrado! Tiempo estimado: {len(camino)}0 min.")
+                return camino  # Camino encontrado
+            
 
-                    # Lo agregamos a la cola de prioridad:
-                    heapq.heappush(cola, (nuevo_f, nuevo_g, (nueva_x, nueva_y), camino + [(nueva_x, nueva_y)]))
+            # Marcamos como visitado
+            self.visitados.add((x, y))
+
+            # Revisamos vecinos
+            for dx, dy in self.movimientos:
+                nueva_x, nueva_y = x + dx, y + dy
+                if (0 <= nueva_x < num_filas and 0 <= nueva_y < num_columnas and
+                        mapa[nueva_x][nueva_y] != Celda.celda_obstaculo) and (nueva_x, nueva_y) not in self.visitados:
+                        # Esta condición también evita que las coordenadas (x, y) no se repitan, porque sino volverian al punto de entrada siempre. 
+                        
+                        # Caminamos 1 paso más:
+                        nuevo_g = g + 1
+
+                        # Calculamos la heuristica actual:
+                        h = distancia_manhattan_heuristica(nueva_x, self.x2, nueva_y, self.y2)
+
+                        # Hacemos el calculo de f:
+                        nuevo_f = nuevo_g + h
+
+                        # Lo agregamos a la cola de prioridad:
+                        heapq.heappush(self.cola, (nuevo_f, nuevo_g, (nueva_x, nueva_y), camino + [(nueva_x, nueva_y)]))
+
+
+        # No se encontró camino
+        print("")
+        print("No hay camino posible")
+        return None  # No se encontró camino.
 
 
     # No se encontró camino
