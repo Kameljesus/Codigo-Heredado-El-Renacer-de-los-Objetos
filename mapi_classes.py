@@ -24,9 +24,9 @@ class Config:
     ancho_de_tablero = 640
     alto_de_tablero = 640
 
-
     # Posición X donde empiezan los botones (justo a la derecha del tablero):
     botones_x = ancho_de_tablero + 20
+
 
 class Boton:
     # Esto es innecesario en este caso, ya que son variables directas y no atributos fijos en sí.
@@ -57,7 +57,7 @@ botones = {
     "salida": Boton("salida", Config.botones_x, 170, 120, 40),
     "algoritmo": Boton("algoritmo", Config.botones_x, 230, 120, 40),
     "manual": Boton("manual", Config.botones_x, 290, 120, 40),
-    "reset": Boton("reset", Config.botones_x, 350, 120, 40),
+    "reset": Boton("reset", Config.botones_x, 350, 120, 40)
 
     # botones_x: posición horizontal (eje X) donde empieza el botón, en píxeles desde la izquierda de la ventana.
     # 230: posición vertical (eje Y) donde empieza el botón, en píxeles desde arriba.
@@ -69,12 +69,12 @@ botones = {
 #Setup básico de pygame:
 class Setup:
     def __init__(self):
-        self.ancho = Config.ancho_de_pantalla
-        self.alto = Config.alto_de_pantalla
+        self.ancho_setup = Config.ancho_de_pantalla
+        self.alto_setup = Config.alto_de_pantalla
 
-        self.screen = pygame.display.set_mode((self.ancho_setup, self.ancho_setup))
+        self.screen = pygame.display.set_mode((self.ancho_setup, self.alto_setup))
         pygame.display.set_caption("Google Maps Veneco:")
-        self.clock = pygame.time.Clock() # Para definir los FPS de mi juego.
+        self.clock = pygame.time.Clock() # Para definir los fps de mi juego.
         self.running = True
 
 setup = Setup()
@@ -130,17 +130,16 @@ modo_actual = 'obstaculo'
 
 class Tablero:
     # Atributos de instancia:
-    def __init__(self, num_columnas, num_filas, entrada_fila = None, entrada_columna = None, salida_fila = None, salida_columna = None, ):
+    def __init__(self, columnas, filas):
         # Crear tablero:
-        self.mapa = [[Celda.celda_libre for columna in range(num_columnas)] for fila in range(num_filas)]
+        self.mapa = [[Celda.celda_libre for columna in range(columnas)] for fila in range(filas)]
 
         # Coordenadas de entrada y salida:
-        self.entrada_fila = entrada_fila
-        self.entrada_columna = entrada_columna
-        self.salida_fila = salida_fila
-        self.salida_columna = salida_columna
+        self.entrada = None
+        self.salida = None
         # 'None' indica que no han sido definidas por el usuario (después las definirá, obviamente).
         # Tambien se le puede poner '-1' si solo influye en el pygame.
+        self.obstaculos = set()
 
 
     # Función de Imprimir Tablero:
@@ -185,6 +184,7 @@ class Tablero:
             texto_rect = texto.get_rect(center=rect.center)
             setup.screen.blit(texto, texto_rect)
 
+tablero = Tablero(num_columnas, num_filas)
 
 
 def juego_manual(entrada_fila, entrada_columna, salida_fila, salida_columna):
@@ -273,23 +273,29 @@ def distancia_manhattan_heuristica(primera_x, segunda_x, primera_y, segunda_y):
     return abs(primera_x - segunda_x) + abs(primera_y - segunda_y)
 
 class A_estrella:
-    def __init__(self, entrada_fila, entrada_columna, salida_fila, salida_columna, mapa, tam_celda):
+    def __init__(self, entrada, salida, mapa, tam_celda_x, tam_celda_y):
         
         # Le damos las coordenadas al algoritmo:
-        self.x1 = entrada_fila
-        self.y1 = entrada_columna
-        self.x2 = salida_fila
-        self.y2 = salida_columna
+        self.x1 = entrada[0]
+        self.y1 = entrada[1]
+        self.x2 = salida[0]
+        self.y2 = salida[1]
 
         self.movimientos = [(-1, 0), (1, 0), (0, -1), (0, 1)]  # Arriba, abajo, izquierda, derecha
+
+        # Creamos una lista vacía llamada cola, que será usada como heap/cola de prioridad.
+        self.cola = []
+
+        # set(): lista que no se puede repetir elementos.
+        self.visitados = set()
+
+        self.mejor_g = dict()
+
 
         # Formula general de A*: f = g + h
         # "g" es igual a el costo (en este caso, distancia) que nos llevó moverse desde el principio hasta ese punto.
         # "h" (heuristica) es el costo de la casilla actual hasta la meta.
         # "f" es la suma de 'g' y 'h'
-
-        # Creamos una lista vacía llamada cola, que será usada como heap/cola de prioridad.
-        self.cola = []
 
         # Calculamos la heurística (h) desde la entrada hasta la salida.
         self.heuristica = distancia_manhattan_heuristica(self.x1, self.x2, self.y1, self.y2)
@@ -309,9 +315,6 @@ class A_estrella:
         # Además, ordena automáticamente la cola de forma que la celda con menor f quede siempre al frente.”
 
 
-        self.visitados = set()
-        # set(): lista que no se puede repetir elementos.
-
         while self.cola:
             f, g, (x, y), camino = heapq.heappop(self.cola)
             # Saca el nodo con menor 'f' (puntaje) de la cola
@@ -321,7 +324,7 @@ class A_estrella:
                 mapa[x][y] = Celda.celda_ruta
 
             # Pausa para mostrar el progreso paso a paso
-            self.pausa = pygame.time.wait(200)  # Pausa entre cada paso
+            pygame.time.wait(200)  # Pausa entre cada paso
 
             # Permitir interacción durante el algoritmo
             for event in pygame.event.get():
@@ -332,8 +335,8 @@ class A_estrella:
                 # Permitir modificar el mapa durante la ejecución
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     x_mouse, y_mouse = pygame.mouse.get_pos()
-                    fila_click = y_mouse // tam_celda
-                    columna_click = x_mouse // tam_celda
+                    fila_click = y_mouse // tam_celda_y
+                    columna_click = x_mouse // tam_celda_x
                     
                     # Solo permitir agregar/quitar obstáculos
                     if (0 <= fila_click < num_filas and 0 <= columna_click < num_columnas and
@@ -346,7 +349,7 @@ class A_estrella:
 
             # Actualizar pantalla para mostrar el progreso
             setup.screen.fill("gray")
-            mostrar_tablero()
+            tablero.mostrar_tablero()
             pygame.display.flip()
             setup.clock.tick(60)
 
@@ -373,13 +376,23 @@ class A_estrella:
                         # Caminamos 1 paso más:
                         nuevo_g = g + 1
 
+                        # Guardamos la posición:
+                        nueva_pos = (nueva_x, nueva_y)
+
+                        # Si ya visitamos esta posición con un mejor g, la descartamos
+                        if nueva_pos in self.mejor_g and nuevo_g >= self.mejor_g[nueva_pos]:
+                            continue
+
+                        # Guardamos el nuevo mejor g
+                        self.mejor_g[nueva_pos] = nuevo_g
+
                         # Calculamos la heuristica actual:
-                        h = distancia_manhattan_heuristica(nueva_x, self.x2, nueva_y, self.y2)
+                        nueva_h = distancia_manhattan_heuristica(nueva_x, self.x2, nueva_y, self.y2)
 
                         # Hacemos el calculo de f:
-                        nuevo_f = nuevo_g + h
-
-                        # Lo agregamos a la cola de prioridad:
+                        nuevo_f = nuevo_g + nueva_h
+                        
+                        # Agregamos a la cola el nuevo atributo:
                         heapq.heappush(self.cola, (nuevo_f, nuevo_g, (nueva_x, nueva_y), camino + [(nueva_x, nueva_y)]))
 
 
@@ -387,12 +400,6 @@ class A_estrella:
         print("")
         print("No hay camino posible")
         return None  # No se encontró camino.
-
-
-    # No se encontró camino
-    print("")
-    print("No hay camino posible")
-    return None  # No se encontró camino
 
 
 # Modo (funcion actual) del click:
